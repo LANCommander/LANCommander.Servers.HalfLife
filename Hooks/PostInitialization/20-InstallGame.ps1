@@ -37,9 +37,10 @@ if ($Env:STEAM_USERNAME -ne "anonymous" -and $Env:STEAM_PASSWORD) {
     $steamCmdArgs += $Env:STEAM_PASSWORD
 }
 
-if ($Env:GAME_MOD -and $Env:GAME_MOD -ne "valve") {
-    $steamCmdArgs += "+app_set_config", $Env:STEAM_APP_ID, "mod", $Env:GAME_MOD
-}
+# Always set the mod, valve included: SteamCMD keeps it in its own config, which a new container
+# doesn't have, and app 90 then falls back to cstrike and deletes the valve content.
+$mod = if ($Env:GAME_MOD) { $Env:GAME_MOD } else { "valve" }
+$steamCmdArgs += "+app_set_config", $Env:STEAM_APP_ID, "mod", $mod
 
 $steamCmdArgs += "+app_update", $Env:STEAM_APP_ID
 
@@ -50,26 +51,38 @@ if ($Env:STEAM_BRANCH) {
     }
 }
 
-if ([System.Convert]::ToBoolean($Env:STEAM_VALIDATE)) {
-    $steamCmdArgs += "validate"
-}
-
-$steamCmdArgs += "+quit"
+$validate = [System.Convert]::ToBoolean($Env:STEAM_VALIDATE)
 
 $attempts = [int]$Env:STEAM_INSTALL_ATTEMPTS
 if ($attempts -lt 1) { $attempts = 1 }
 
+# SteamCMD can exit 0 with app 90 only partly installed, so check for the base and mod content too
+$requiredFiles = @(
+    (Join-Path $Env:SERVER_DIR "valve/halflife.wad"),
+    (Join-Path $Env:SERVER_DIR "$mod/liblist.gam")
+)
+
 for ($attempt = 1; $attempt -le $attempts; $attempt++) {
     Write-Log "SteamCMD attempt $attempt of $attempts"
 
-    Invoke-SteamCmd -Arguments $steamCmdArgs
+    $attemptArgs = $steamCmdArgs
+    if ($validate -or $attempt -gt 1) { $attemptArgs += "validate" }
 
-    if ($LASTEXITCODE -eq 0) {
+    Invoke-SteamCmd -Arguments ($attemptArgs + "+quit")
+    $exitCode = $LASTEXITCODE
+
+    $missing = @($requiredFiles | Where-Object { -not (Test-Path -Path $_) })
+
+    if ($exitCode -eq 0 -and $missing.Count -eq 0) {
         Write-Log "SteamCMD install completed"
         break
     }
 
-    Write-Log -Level Warning "SteamCMD exited with code $LASTEXITCODE"
+    if ($exitCode -ne 0) {
+        Write-Log -Level Warning "SteamCMD exited with code $exitCode"
+    } else {
+        Write-Log -Level Warning "SteamCMD install incomplete, missing: $($missing -join ', ')"
+    }
 }
 
 # Runs before the chown and remount so hooks can add files to Server/ (e.g. a mod)

@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.7
 
-FROM lancommander/steamcmd:latest
+# Override to build against a locally built base, e.g. lancommander/steamcmd:local
+ARG BASE_IMAGE=lancommander/steamcmd:latest
+FROM ${BASE_IMAGE}
 
 # SteamCMD settings
 # App 90 is the shared GoldSrc dedicated server (HLDS). Other GoldSrc games use
