@@ -72,6 +72,9 @@ for ($attempt = 1; $attempt -le $attempts; $attempt++) {
     Write-Log -Level Warning "SteamCMD exited with code $LASTEXITCODE"
 }
 
+# Runs before the chown and remount so hooks can add files to Server/ (e.g. a mod)
+Invoke-Hook "PostSteamInstallGame"
+
 if ((id -u) -eq "0") {
     # SteamCMD ran as root, so hand the files to the server user
     chown -R "${Env:USER}:${Env:GROUP}" $Env:SERVER_DIR
@@ -92,5 +95,3 @@ if ((id -u) -eq "0") {
         }
     }
 }
-
-Invoke-Hook "PostSteamInstallGame"

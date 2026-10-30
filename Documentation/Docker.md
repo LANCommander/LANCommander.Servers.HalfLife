@@ -123,7 +123,7 @@ PowerShell scripts in `/config/Scripts/Hooks/{HookName}/` run at points in the c
 
 Hooks shipped in this image (copied into `/config/Scripts/Hooks` on every start):
 
-- `PostInitialization/20-InstallGame.ps1`: Installs HLDS. It applies `GAME_MOD`, retries SteamCMD, and remounts the overlay afterwards so a first install is visible in `Merged/`.
+- `PostInitialization/20-InstallGame.ps1`: Installs HLDS. It applies `GAME_MOD`, retries SteamCMD, runs `PostSteamInstallGame`, then remounts the overlay so anything SteamCMD or those hooks added to `Server/` shows up in `Merged/`.
 - `PostInitialization/30-ConfigureSteam.ps1`: Seeds `steam_appid.txt` and links `~/.steam/sdk32/steamclient.so`. Without these, HLDS fails its first launch with `Unable to initialize Steam`.
 
 ## Troubleshooting
